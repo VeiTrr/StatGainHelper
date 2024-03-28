@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "statgainhelper",
+  "version": "${version}",
+  "name": "StatGainHelper",
+  "description": "",
+  "authors": [
+    "VeiTr"
+  ],
+  "contact": {
+    "repo": "https://github.com/VeiTr/StatGainHelper"
+  },
+  "license": "MIT",
+  "icon": "assets/statgainhelper/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "vt.statgainhelper.StatGainHelperClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  },
+  "mixins": [
+    "StatGainHelper.mixins.json"
+    ]
+}
