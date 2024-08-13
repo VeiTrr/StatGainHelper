@@ -5,8 +5,10 @@
   "mixins": [
   ],
   "client": [
+    "GenericContainerScreenMixin",
     "InventoryScreenMixin",
-    "GenericContainerScreenMixin"
+    "ScreenAccessor",
+    "StatScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
