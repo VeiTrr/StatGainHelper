@@ -1,4 +1,7 @@
 {
   "statgainhelper.itemselection": "Select the item to track",
-  "stat.statgainhelperButton": "Track"
+  "stat.statgainhelperButton": "Track",
+  "statgainhelper.add": "Add",
+  "statgainhelper.confirm": "Confirm",
+  "statgainhelper.cancel": "Cancel"
 }

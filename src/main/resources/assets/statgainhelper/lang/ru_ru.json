@@ -1,4 +1,7 @@
 {
   "statgainhelper.itemselection": "Выберите предметы для отслеживания",
-  "stat.statgainhelperButton": "Отслеживание"
+  "stat.statgainhelperButton": "Отслеживание",
+  "statgainhelper.add": "Добавить",
+  "statgainhelper.confirm": "Подтвердить",
+  "statgainhelper.cancel": "Отмена"
 }
