@@ -1,5 +1,7 @@
 {
   "statgainhelper.itemselection": "Select the item to track",
+  "key.categories.statgainhelper": "StatGainHelper",
+  "key.statgainhelper.openitemselection": "Open item selection screen",
   "stat.statgainhelperButton": "Track",
   "statgainhelper.add": "Add",
   "statgainhelper.confirm": "Confirm",

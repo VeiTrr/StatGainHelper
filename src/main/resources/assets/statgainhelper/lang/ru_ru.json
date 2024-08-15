@@ -1,5 +1,7 @@
 {
   "statgainhelper.itemselection": "Выберите предметы для отслеживания",
+  "key.categories.statgainhelper": "StatGainHelper",
+  "key.statgainhelper.openitemselection": "Открыть экран выбора предметов",
   "stat.statgainhelperButton": "Отслеживание",
   "statgainhelper.add": "Добавить",
   "statgainhelper.confirm": "Подтвердить",

@@ -99,7 +99,7 @@ public class ItemSelectionScreen extends Screen {
 
                 context.fillGradient(RenderLayer.getGuiOverlay(), tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, 0x80000000, 0x80000000, 0);
                 this.textRenderer.draw(entry.tooltipText.getString(), tooltipX + 5, tooltipY + 5, 0xFFFFFF, false, context.getMatrices().peek().getPositionMatrix(), context.getVertexConsumers(), TextRenderer.TextLayerType.SEE_THROUGH, 0, 0xF000F0, false);
-                entry.tooltipText = null; // Clear tooltip after rendering
+                entry.tooltipText = null;
             }
         }
     }
@@ -127,13 +127,11 @@ public class ItemSelectionScreen extends Screen {
 
         @Override
         protected void drawSelectionHighlight(DrawContext context, int y, int entryWidth, int entryHeight, int borderColor, int fillColor) {
-            int startX = this.left + 10; // Начальная X позиция для первой колонки
-            int itemWidth = 40; // Ширина ячейки предмета (включая отступы)
+            int startX = this.left + 10;
+            int itemWidth = 40;
 
-            // Вычисляем позицию выбранного предмета в строке
             int itemX = startX + (selectedItemIndex % columns) * itemWidth;
 
-            // Отрисовываем выделение только вокруг выбранного предмета
             context.fill(itemX - 2, y - 2, itemX + 20 + 2, y + 20 + 2, borderColor);
             context.fill(itemX - 1, y - 1, itemX + 20 + 1, y + 20 + 1, fillColor);
         }
@@ -241,10 +239,10 @@ public class ItemSelectionScreen extends Screen {
 
                 for (int i = startIndex; i < endIndex; i++) {
                     int itemX = ItemGridWidget.this.left + (i - startIndex) * 40 + 10;
-                    int itemY = ItemGridWidget.this.getRowTop(row);  // Используем метод getRowTop() для вычисления Y координаты строки
+                    int itemY = ItemGridWidget.this.getRowTop(row);
                     if (mouseX >= itemX && mouseX < itemX + 20 && mouseY >= itemY && mouseY < itemY + 20) {
                         selectedItem = items.get(i);
-                        selectedItemIndex = i;  // Обновляем индекс выбранного предмета
+                        selectedItemIndex = i;
                         return true;
                     }
                 }
