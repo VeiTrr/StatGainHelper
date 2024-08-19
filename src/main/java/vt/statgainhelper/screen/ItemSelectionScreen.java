@@ -1,24 +1,31 @@
 package vt.statgainhelper.screen;
 
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.*;
 import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.navigation.GuiNavigationPath;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.EntryListWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.widget.*;
+import net.minecraft.client.render.DiffuseLighting;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.crash.CrashException;
+import net.minecraft.util.crash.CrashReport;
+import net.minecraft.util.crash.CrashReportSection;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class ItemSelectionScreen extends Screen {
@@ -38,6 +45,11 @@ public class ItemSelectionScreen extends Screen {
 
     @Override
     protected void init() {
+        int panelWidth = 100;
+
+        FilterPanel filterPanel = new FilterPanel(this.width / 2 - 110 - panelWidth, 50, panelWidth, this.height - 120);
+        this.addDrawableChild(filterPanel);
+
         this.searchField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, 20, 200, 20, Text.literal(""));
         this.searchField.setChangedListener(this::onSearchTextChanged);
         this.addDrawableChild(this.searchField);
@@ -47,8 +59,10 @@ public class ItemSelectionScreen extends Screen {
 
         this.itemGridWidget = new ItemGridWidget(this.width / 2 - 100, 50, 200, this.height - 120, 5);
         this.addSelectableChild(this.itemGridWidget);
-
         this.itemGridWidget.updateGrid(this.filteredItems);
+
+        ItemInfoPanel itemInfoPanel = new ItemInfoPanel(this.width / 2 + 110, 50, panelWidth, this.height - 120);
+        this.addDrawableChild(itemInfoPanel);
 
         this.addButton = ButtonWidget.builder(
                 Text.translatable("statgainhelper.add"), button -> {
@@ -132,8 +146,8 @@ public class ItemSelectionScreen extends Screen {
 
             int itemX = startX + (selectedItemIndex % columns) * itemWidth;
 
-            context.fill(itemX - 2, y - 2, itemX + 20 + 2, y + 20 + 2, borderColor);
-            context.fill(itemX - 1, y - 1, itemX + 20 + 1, y + 20 + 1, fillColor);
+            context.fill(itemX - 2, y - 2, itemX + 20 + 2, y + 17 + 2, borderColor);
+            context.fill(itemX - 1, y - 1, itemX + 20 + 1, y + 17 + 1, fillColor);
         }
 
 
@@ -248,6 +262,362 @@ public class ItemSelectionScreen extends Screen {
                 }
                 return false;
             }
+        }
+    }
+
+    private class ItemInfoPanel implements Drawable,
+            Element,
+            Widget,
+            Selectable {
+
+        private int x, y, width, height;
+        private SelectionType selectionType = SelectionType.NONE;
+
+        public ItemInfoPanel(int x, int y, int width, int height) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+
+        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            context.fill(x, y, x + width, y + height, 0xFF202020);
+
+            if (itemGridWidget.selectedItemIndex != -1) {
+                ItemStack selectedItem = itemGridWidget.items.get(itemGridWidget.selectedItemIndex);
+                drawItemScaled(context, selectedItem, x + (float) width / 2, y + 18, 32, 32, 32);
+                drawScrollableText(context, textRenderer, selectedItem.getName(), x + 10, y + 60, width - 20, height - 70);
+                drawScrollableText(context, textRenderer, Text.literal(Registries.ITEM.getId(selectedItem.getItem()).toString()), x + 10, y + 80, width - 20, height - 70);
+            } else {
+                drawScrollableText(context, textRenderer, Text.translatable("statgainhelper.selectitem"), x + 10, y + 60, width - 20, height - 70);
+            }
+        }
+
+        private void drawItemScaled(DrawContext context, ItemStack selectedItem, float x, float y, float scaleX, float scaleY, float scaleZ) {
+            if (selectedItem != null && selectedItem.getItem() != null && client != null) {
+                BakedModel bakedModel = client.getItemRenderer().getModel(selectedItem, null, null, 0);
+                context.getMatrices().push();
+                context.getMatrices().translate(x, y, 150);
+                try {
+                    context.getMatrices().multiplyPositionMatrix(new Matrix4f().scaling(1.0f, -1.0f, 1.0f));
+                    context.getMatrices().scale(scaleX, scaleY, scaleZ);
+                    boolean bl = !bakedModel.isSideLit();
+                    if (bl) {
+                        DiffuseLighting.disableGuiDepthLighting();
+                    }
+                    client.getItemRenderer().renderItem(selectedItem, ModelTransformationMode.GUI, false, context.getMatrices(), context.getVertexConsumers(), 0xF000F0, OverlayTexture.DEFAULT_UV, bakedModel);
+                    if (bl) {
+                        DiffuseLighting.enableGuiDepthLighting();
+                    }
+                } catch (Throwable throwable) {
+                    CrashReport crashReport = CrashReport.create(throwable, "Rendering item");
+                    CrashReportSection crashReportSection = crashReport.addElement("Item being rendered");
+                    crashReportSection.add("Item Type", () -> String.valueOf(selectedItem.getItem()));
+                    crashReportSection.add("Item Damage", () -> String.valueOf(selectedItem.getDamage()));
+                    crashReportSection.add("Item NBT", () -> String.valueOf(selectedItem.getNbt()));
+                    crashReportSection.add("Item Foil", () -> String.valueOf(selectedItem.hasGlint()));
+                    throw new CrashException(crashReport);
+                }
+                context.getMatrices().pop();
+            }
+        }
+
+        private void drawScrollableText(DrawContext context, TextRenderer textRenderer, Text text, int x, int y, int width, int height) {
+            List<OrderedText> lines = textRenderer.wrapLines(text, width);
+            for (int i = 0; i < lines.size(); i++) {
+                context.drawCenteredTextWithShadow(textRenderer, lines.get(i), x + width / 2, y + i * 10, 0xFFFFFF);
+            }
+        }
+
+        @Override
+        public void mouseMoved(double mouseX, double mouseY) {
+            Element.super.mouseMoved(mouseX, mouseY);
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return Element.super.mouseClicked(mouseX, mouseY, button);
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            return Element.super.mouseReleased(mouseX, mouseY, button);
+        }
+
+        @Override
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            return Element.super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        }
+
+        @Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+            return Element.super.mouseScrolled(mouseX, mouseY, amount);
+        }
+
+        @Override
+        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            return Element.super.keyPressed(keyCode, scanCode, modifiers);
+        }
+
+        @Override
+        public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+            return Element.super.keyReleased(keyCode, scanCode, modifiers);
+        }
+
+        @Override
+        public boolean charTyped(char chr, int modifiers) {
+            return Element.super.charTyped(chr, modifiers);
+        }
+
+        @Override
+        public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+            return Element.super.getNavigationPath(navigation);
+        }
+
+        @Override
+        public boolean isMouseOver(double mouseX, double mouseY) {
+            return Element.super.isMouseOver(mouseX, mouseY);
+        }
+
+        @Override
+        public void setFocused(boolean focused) {
+
+        }
+
+        @Override
+        public boolean isFocused() {
+            return false;
+        }
+
+        @Override
+        public @Nullable GuiNavigationPath getFocusedPath() {
+            return Element.super.getFocusedPath();
+        }
+
+        @Override
+        public ScreenRect getNavigationFocus() {
+            return Element.super.getNavigationFocus();
+        }
+
+        @Override
+        public void setPosition(int x, int y) {
+            Widget.super.setPosition(x, y);
+        }
+
+        @Override
+        public SelectionType getType() {
+            return selectionType;
+        }
+
+        @Override
+        public boolean isNarratable() {
+            return Selectable.super.isNarratable();
+        }
+
+        @Override
+        public void appendNarrations(NarrationMessageBuilder builder) {
+
+        }
+
+        @Override
+        public void setX(int x) {
+            this.x = x;
+        }
+
+        @Override
+        public void setY(int y) {
+            this.y = y;
+        }
+
+        public void setWidth(int width) {
+            this.width = width;
+        }
+
+        public void setHeight(int height) {
+            this.height = height;
+        }
+
+        @Override
+        public int getX() {
+            return x;
+        }
+
+        @Override
+        public int getY() {
+            return y;
+        }
+
+        @Override
+        public int getWidth() {
+            return width;
+        }
+
+        @Override
+        public int getHeight() {
+            return height;
+        }
+
+        @Override
+        public void forEachChild(Consumer<ClickableWidget> consumer) {
+
+        }
+
+        @Override
+        public int getNavigationOrder() {
+            return Element.super.getNavigationOrder();
+        }
+    }
+
+    private static class FilterPanel implements Drawable,
+            Element,
+            Widget,
+            Selectable {
+        private int x;
+        private int y;
+        private int width;
+        private int height;
+        private SelectionType selectionType = SelectionType.NONE;
+
+        public FilterPanel(int x, int y, int width, int height) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+
+
+        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+            context.fill(x, y, x + width, y + height, 0xFF202020); // Темный фон
+            // Добавить рендеринг кнопок для фильтров и другие элементы UI
+        }
+
+        @Override
+        public void mouseMoved(double mouseX, double mouseY) {
+            Element.super.mouseMoved(mouseX, mouseY);
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return Element.super.mouseClicked(mouseX, mouseY, button);
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            return Element.super.mouseReleased(mouseX, mouseY, button);
+        }
+
+        @Override
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            return Element.super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        }
+
+        @Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+            return Element.super.mouseScrolled(mouseX, mouseY, amount);
+        }
+
+        @Override
+        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            return Element.super.keyPressed(keyCode, scanCode, modifiers);
+        }
+
+        @Override
+        public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+            return Element.super.keyReleased(keyCode, scanCode, modifiers);
+        }
+
+        @Override
+        public boolean charTyped(char chr, int modifiers) {
+            return Element.super.charTyped(chr, modifiers);
+        }
+
+        @Override
+        public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+            return Element.super.getNavigationPath(navigation);
+        }
+
+        @Override
+        public boolean isMouseOver(double mouseX, double mouseY) {
+            return Element.super.isMouseOver(mouseX, mouseY);
+        }
+
+        @Override
+        public void setFocused(boolean focused) {
+
+        }
+
+        @Override
+        public boolean isFocused() {
+            return false;
+        }
+
+        @Override
+        public @Nullable GuiNavigationPath getFocusedPath() {
+            return Element.super.getFocusedPath();
+        }
+
+        @Override
+        public ScreenRect getNavigationFocus() {
+            return Element.super.getNavigationFocus();
+        }
+
+        @Override
+        public void setPosition(int x, int y) {
+            Widget.super.setPosition(x, y);
+        }
+
+        @Override
+        public SelectionType getType() {
+            return selectionType;
+        }
+
+        @Override
+        public boolean isNarratable() {
+            return Selectable.super.isNarratable();
+        }
+
+        @Override
+        public void appendNarrations(NarrationMessageBuilder builder) {
+
+        }
+
+        @Override
+        public void setX(int x) {
+            this.x = x;
+        }
+
+        @Override
+        public void setY(int y) {
+            this.y = y;
+        }
+
+        @Override
+        public int getX() {
+            return x;
+        }
+
+        @Override
+        public int getY() {
+            return y;
+        }
+
+        @Override
+        public int getWidth() {
+            return width;
+        }
+
+        @Override
+        public int getHeight() {
+            return height;
+        }
+
+        @Override
+        public void forEachChild(Consumer<ClickableWidget> consumer) {
+        }
+
+        @Override
+        public int getNavigationOrder() {
+            return Element.super.getNavigationOrder();
         }
     }
 }
